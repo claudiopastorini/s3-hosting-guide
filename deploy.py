@@ -8,16 +8,19 @@ from shutil import copyfile
 import threading
 from multiprocessing.pool import ThreadPool
 
+#TODO create the bucket if not exist
+
 dontZip = ['.jpg','.png','.ttf','.woff','.woff2','.gif']
-bucketName = 'blank-website'
+bucketName = 'api.powahome.com'
 sourceDir = 'dist'
-stagingDir = 'out\\'
+stagingDir = 'out'
 
 def getFiles(baseFolder):
     file_paths = []   
     for root, directories, files in os.walk(baseFolder):
         for filename in files:         
             filepath = os.path.join(root, filename)
+            print("filepath: " + filepath)
             file_paths.append(filepath)  
     return file_paths  
 
@@ -26,7 +29,7 @@ def zipFile(input, output):
     dirname = os.path.dirname(output)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    with open(input) as f_in, gzip.open(output, 'wb') as f_out:
+    with open(input, 'rb') as f_in, gzip.open(output, 'wb') as f_out:
         f_out.writelines(f_in)
 
 def copyFile(input, output):
@@ -42,18 +45,20 @@ def isZipFile(fileName):
         return False
     return True
 
-def upload_file(bucket_name,filePath):
-    session = boto3.Session(profile_name='deploy')
+def upload_file(bucket_name, filePath):
+    session = boto3.Session(profile_name='default')
     client = session.client('s3')
     s3 = session.resource('s3')
-    destname = os.path.join(*(filePath.split('\\')[2:])).replace('\\','/')          
+    print(filePath)
+    destname = os.path.join(*(filePath.split('/')[2:]))
+    print("destname: " + destname)
     print ("Uploading file " + filePath + ' to ' + destname)
     try:      
         data = open(filePath, 'rb')
         ftype, encoding = MimeTypes().guess_type(filePath)
         conType = ftype if ftype is not None else encoding if encoding is not None else 'text/plain'    
         encType =  'gzip' if isZipFile(filePath) else ''  
-        s3.Object(bucket_name, destname).put(Body=data,ContentEncoding=encType,ContentType=conType,ACL='public-read')
+        s3.Object(bucket_name, destname).put(Body=data, ContentEncoding=encType, ContentType=conType, ACL='public-read')
     except ClientError as err:
         print("Failed to upload artefact to S3.\n" + str(err))
         return False
@@ -62,6 +67,6 @@ def upload_file(bucket_name,filePath):
         return False   
     return True
 
-[zipFile(x,stagingDir + x) if isZipFile(x) else copyFile(x,stagingDir + x) for x in getFiles(sourceDir)]
+[zipFile(x, stagingDir + "/" + x) if isZipFile(x) else copyFile(x, stagingDir + "/" + x) for x in getFiles(sourceDir)]
 pool = ThreadPool(processes=40)
-pool.map(lambda x : upload_file(bucketName,x), getFiles(stagingDir))
+pool.map(lambda x : upload_file(bucketName, x), getFiles(stagingDir))
