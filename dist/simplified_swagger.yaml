@@ -1,0 +1,170 @@
+swagger: '2.0'
+info:
+  description: >-
+    This API allows you to manage your Powahome devices using simple HTTP
+    request.
+  version: 0.1.0
+  title: Powahome API
+  termsOfService: 'http://www.powahome.com/pages/terms'
+  contact:
+    email: info@powahome.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+host: api.powahome.com
+tags:
+  - name: devices
+    description: Access to your devices
+schemes:
+  - https
+paths:
+  /devices:
+    get:
+      tags:
+        - devices
+      summary: Get all your devices
+      description: Obtain all the info about your devices
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Success
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Device'
+  '/devices/{deviceName}/channels/{channelName}/status':
+    get:
+      tags:
+        - devices
+      summary: Get channel's status
+      description: Obtain the status of the specified channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: deviceName
+          in: path
+          description: The device's name that needs to be fetched
+          required: true
+          type: string
+        - name: channelName
+          in: path
+          description: The channel that needs to be updated
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/Status'
+        '400':
+          description: Invalid device name supplied
+        '403':
+          description: Forbidden
+        '404':
+          description: Device not found
+        '500':
+          description: Unexpected error
+    put:
+      tags:
+        - devices
+      summary: Change channel's status
+      description: Update the status of the specified channel
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: deviceName
+          in: path
+          description: The device that needs to be updated
+          required: true
+          type: string
+        - name: channelName
+          in: path
+          description: The channel that needs to be updated
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: Updated device object
+          required: true
+          schema:
+            $ref: '#/definitions/Status'
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/Status'
+        '403':
+          description: Forbidden
+        '404':
+          description: Device not found
+        '422':
+          description: Invalid device name supplied/No new status supplied
+        '500':
+          description: Unexpected error
+definitions:
+  DeviceType:
+    type: string
+    enum:
+      - light
+      - roller
+    description: |
+      Supported device:
+       * light - Device that controls lights
+       * roller - Device that controls roller blinders
+  Device:
+    type: object
+    properties:
+      uid:
+        type: string
+        description: The name of the device
+        example: ffffffffffff
+      firmwareVersion:
+        type: string
+        description: The firmware version of the device
+      hardwareVersion:
+        type: string
+        description: The hardware version of the device
+      type:
+        $ref: '#/definitions/DeviceType'
+      roomName:
+        type: string
+        description: The room name where the device is placed
+      names:
+        type: array
+        items:
+          type: string
+        description: The names of the device's channels
+      icons:
+        type: array
+        items:
+          type: string
+        description: The icons of the device's channels
+  Status:
+    type: object
+    required:
+      - status
+    properties:
+      status:
+        type: integer
+        minimum: 0
+        maximum: 100
+        description: |-
+          The current status of the device.
+          If the device is a light: 
+          - 1 : ON
+          - 0 : OFF
+
+          If the device is a roller:
+          - 0 : completely closed
+          - [number] : percentage of opening
+          - 100 : completely opened
+      timestamp:
+        type: integer
+        description: The UNIX timestamp of the last status change
